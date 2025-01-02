@@ -32,7 +32,7 @@ def align_to_boundary(image: np.ndarray) -> tuple[int, int, np.ndarray]:
     return x, y, image
 
 def normalize(image: np.ndarray) -> np.ndarray:
-        return np.asarray(255 * ((image - np.min(image)) / (np.max(image) - np.min(image)))).astype(np.uint8)
+    return np.asarray(255 * ((image - np.min(image)) / (np.max(image) - np.min(image)))).astype(np.uint8)
 
 class DNNEdge(object):
     NET_IMG_SHAPE: tuple[int, int] = (500, 500)
@@ -54,7 +54,7 @@ class DNNEdge(object):
         blob = self.__img_to_blob(image)
         self.net.setInput(blob)
         edges = self.net.forward()[0, 0]
-        edges = self.__edge_postprocessing(edges)
+        # edges = self.__edge_postprocessing(edges)
         _, _, edges = align_to_boundary(edges)
         edges = cv2.resize(edges, SCALE)
         return edges
@@ -123,16 +123,19 @@ if __name__	== "__main__":
 
     Edge = DNNEdge()
     edges = Edge.get_edges(image)
+    SCALE = edges.shape[:2]
+    SCALE = SCALE[::-1]
+    edges = cv2.resize(edges, (1000,1000))
     # edges = closing(edges, disk(3))
     # show(edges, "Edges", 5)
 
-    edges_total = normalize(edges + edges_hue)
-    edges_total = closing(edges_total, disk(2))
+    # edges_total = normalize(edges + edges_hue)
+    # edges_total = closing(edges_total, disk(2))
     
-    show(edges_total, "EDGES TOTAL", 5)
+    show(edges, "EDGES DNN", 1)
 
 
-# exit()
+    exit()
     
 
     from skimage.morphology import disk, dilation
