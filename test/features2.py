@@ -1,4 +1,4 @@
-from helper import DATA_PATH
+from . import DATA_PATH
 
 import pandas as pd
 import numpy as np

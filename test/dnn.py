@@ -3,12 +3,18 @@ import numpy as np
 from skimage.exposure import equalize_adapthist
 from skimage.filters import threshold_otsu
 
-
 from pathlib import Path
 from typing import Self
 from cv2.dnn import Net
 
-from helper import DATA_PATH
+from pathlib import Path
+import sys
+
+parent_dir = Path(__file__).resolve().parent.parent  
+sys.path.append(str(parent_dir))
+
+from solution.helper import DATA_PATH
+
 
 def show(image: np.ndarray, title: str = "Image", scale: float = 1.) -> None:
     imsize = image.shape[:2]

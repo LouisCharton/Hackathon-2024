@@ -7,10 +7,11 @@ from skimage import filters
 from skimage import feature
 from skimage.morphology import disk
 
-if __name__ == "__main__":
-    from helper import DATA_PATH, find_parts
-else:
-    from .helper import DATA_PATH, find_parts
+from pathlib import Path
+import sys
+parent_dir = Path(__file__).resolve().parent.parent  
+sys.path.append(str(parent_dir))
+from solution.helper import DATA_PATH, find_parts
 
 class Features:
     @staticmethod

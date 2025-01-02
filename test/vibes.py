@@ -1,7 +1,12 @@
 import cv2
 import numpy as np
 import random
-from helper import DATA_PATH
+
+from pathlib import Path
+import sys
+parent_dir = Path(__file__).resolve().parent.parent  
+sys.path.append(str(parent_dir))
+from solution.helper import DATA_PATH
 
 
 image_path = DATA_PATH / "part_3/mask_20241126-154623-554.png"  # Ganz i.O.
