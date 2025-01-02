@@ -31,15 +31,15 @@ def processing(image: np.ndarray) -> np.ndarray:
      
 if __name__ == "__main__":
      # image_path = DATA_PATH / "part_3/ mask_20241126-154623-554.png"   # Ganz i.O.
-     # image_path = DATA_PATH / "part_20/mask_20241202-114431-044.png"   # Schrift ausgestanzt
-     image_path = DATA_PATH / "part_22/mask_20241203-165823-809.png"   # Riesen Loch in der Mitte
+     image_path = DATA_PATH / "part_20/mask_20241202-114431-044.png"   # Schrift ausgestanzt
+     # image_path = DATA_PATH / "part_22/mask_20241203-165823-809.png"   # Riesen Loch in der Mitte
      # image_path = DATA_PATH / "part_1/mask_20241203-084242-404.png"    # Beschissener Hintergrund
      image: np.ndarray = cv2.imread(image_path)
      
      SCALE = image.shape[:2]
      SCALE = SCALE[::-1]
           
-     image = cv2.resize(image, (500,500))
+     image = cv2.resize(image, (1000,1000))
 
      image_lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
      image_hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
@@ -47,7 +47,7 @@ if __name__ == "__main__":
      l, _, _ = cv2.split(image_lab)
      l = cv2.bilateralFilter(l, 10, 50, 50)
      l = enhance_contrast(l, disk(10))
-     l[l==0] = l.mean()
+     # l[l==0] = l.mean()
      # l = equalize(l, disk(50))
      
      # F = processing(l)
