@@ -1,54 +1,33 @@
+from dataclasses import dataclass
+from operator import attrgetter
+
 import cv2
 from scipy.ndimage import center_of_mass, distance_transform_edt, rotate
-from scipy.optimize import minimize, OptimizeResult
+from scipy.optimize import minimize, OptimizeResult, basinhopping
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
 SQRT_2 = np.sqrt(2)
 
-# Parameters
-ROT_STEP_SCALING = 2**7
-TRANS_STEP_SCALING = 1
-
 if __name__ == "__main__":
     from helper import SAMPLE_PATH, DATA_PATH
 else:
     from .helper import SAMPLE_PATH, DATA_PATH
+
+@dataclass
+class CostParams:
+    edge_weight: float
+    edge_exp: float
+    com_weight: float
+    com_exp: float
 
 
 def normalize(image: np.ndarray) -> np.ndarray:
     return (image - np.min(image)) / (np.max(image) - np.min(image))
 
 
-def create_height_maps(
-    input: np.ndarray,
-    com_x: float,
-    com_y: float,
-    weight_com: list[float] = [0.01,],
-    exp_com: list[float] = [0.5,],
-    weight_edge: list[float] = [0.01,],
-    exp_edge: list[float] = [1.5,],
-) -> np.ndarray:
-    
-    if not (len(weight_com) == len(exp_com) == len(weight_edge) == len(exp_edge)):
-        raise IndexError("parameter lists have to be of the same length")
-
-    dist_from_edge = distance_transform_edt(1 - input)
-
-    cols, rows = np.indices(np.shape(input))
-    dist_from_com = np.sqrt((cols - com_x) ** 2 + (rows - com_y) ** 2)
-
-    maps = []
-    for i in range(len(weight_com)):
-        edge_cost = (weight_edge[i] * dist_from_edge) ** exp_edge[i]
-        com_cost = (weight_com[i] * dist_from_com) ** exp_com[i]
-        maps.append(edge_cost + com_cost)
-
-    return maps
-
-
-def create_gripper_mask(shape: list[int], gripper, x, y, alpha):
+def create_gripper_mask(shape: list[int], gripper, x, y, alpha) -> np.ndarray:
     gripper_mask = np.zeros(shape)
     gripper = gripper.astype(bool)
     gripper = rotate(gripper, alpha, reshape=True, order=0)
@@ -74,53 +53,60 @@ def create_gripper_mask(shape: list[int], gripper, x, y, alpha):
 def overlay_gripper(
     vars: np.ndarray,
     gripper: np.ndarray,
-    base_img: np.ndarray,
+    edge_cost_map: np.ndarray,
 ) -> np.ndarray:
-    x, y, alpha = vars
-    gripper_mask = create_gripper_mask(base_img.shape, gripper, vars[0], vars[1], vars[2])
+    gripper_mask = create_gripper_mask(edge_cost_map.shape, gripper, vars[0], vars[1], vars[2])
 
-    result_overlay = (
-        base_img * gripper_mask
-    )  # Could maybe be optimized for runtime
+    overlayed_map = edge_cost_map.copy()
 
-    return result_overlay
+    overlayed_map[gripper_mask == 0] = 0
+
+    return overlayed_map
 
 
 def target_function(
     vars: np.ndarray,
     gripper: np.ndarray,
-    height_map: np.ndarray,
-):
-    result_overlay = overlay_gripper(np.floor(vars).astype(int), gripper, height_map)
-    result_sum = np.sum(result_overlay)
+    edge_cost_map: np.ndarray,
+    com_x: int,
+    com_y: int,
+    cost_params: CostParams,
+) -> float:
+    edge_cost_map_overlay = overlay_gripper(np.floor(vars).astype(int), gripper, edge_cost_map)
+    cost_edge = np.sum(edge_cost_map_overlay)
+    dist = np.sqrt( (com_x - vars[0])**2 + (com_y - vars[1])**2 )
+    cost_com = (cost_params.com_weight * dist) ** cost_params.com_exp
 
-    return result_sum
+    return cost_edge + cost_com
 
 
 def optimize(
-    gripper: np.ndarray, height_maps: np.ndarray, com_x: int, com_y: int
+    gripper: np.ndarray, 
+    gripper_diag: int, 
+    com_x: int, 
+    com_y: int, 
+    dist_from_edge: np.ndarray,
+    cost_params: CostParams
 ) -> OptimizeResult:
-    gripper_r = np.max(gripper.shape)/2
-    gripper_diag = np.linalg.norm(gripper.shape, 2)
-    rot_step = np.atan(1/gripper_r) * ROT_STEP_SCALING
 
-    start_x = com_x
-    start_y = com_y
+    edge_cost_map = (cost_params.edge_weight * dist_from_edge) ** cost_params.edge_exp
+    part_shape = edge_cost_map.shape
 
-    for height_map in height_maps:
-        res = minimize(
-            target_function,
-            np.array([start_x, start_y, 0]),
-            (gripper, height_map),
-            "SLSQP",
-            jac=None,
-            #callback=partial(show_res, gripper, height_map),
-            bounds=[(gripper_diag,height_map.shape[1]-gripper_diag),(gripper_diag,height_map.shape[0]-gripper_diag),(-180, 180)],
-            # bounds=[(10, height_map.shape[1]-10), (10,height_map.shape[0]-10), (180, 180)],
-            options={"disp": False, "eps": (TRANS_STEP_SCALING, TRANS_STEP_SCALING, rot_step)},
-        )
-        start_x = res.x[0]
-        start_y = res.x[1]
+    res = basinhopping(
+        target_function,
+        np.array([com_x, com_y, 0]),
+        minimizer_kwargs={
+            "method": "Nelder-Mead",
+            "args": (gripper, edge_cost_map, com_x, com_y, cost_params),
+            "bounds": [(gripper_diag,part_shape[1]-gripper_diag),(gripper_diag,part_shape[0]-gripper_diag),(-1440, 1440)],
+        },
+        T=128,
+        niter=6,
+        stepsize=128,
+        target_accept_rate=0.5,
+        stepwise_factor=0.9,
+    )
+    
     return res
 
 
@@ -137,61 +123,35 @@ def show_res(gripper, height_map, res):
 
 if __name__ == "__main__":
     # part = cv2.imread(f"{SAMPLE_PATH}/reference24.png")
-    part = cv2.imread("REF_PART1.png")
+    part = cv2.imread("ref_part_27.png")
     part = cv2.cvtColor(part, cv2.COLOR_RGB2GRAY)
     _, part = cv2.threshold(part, 1, 255, cv2.THRESH_BINARY)
     part = normalize(part)
 
     gripper = cv2.imread(f"{SAMPLE_PATH}/gripper_2.png")
-    part = cv2.resize(part, (part.shape[0]*4, part.shape[1]*4))
     gripper = cv2.cvtColor(gripper, cv2.COLOR_RGB2GRAY)
     gripper[gripper > 0] = 1
 
-    com_x, com_y = center_of_mass(part)
-    height_maps = create_height_maps(
-        part, 
-        com_x, 
-        com_y,
-        [1, 10, 100],
-        [1, 1.25, 1.5],
-        [1, 1, 1],
-        [2, 3, 5],
-    )
+    gripper_size = np.sum(gripper)
+    gripper_r = np.max(gripper.shape)/2
+    gripper_diag = np.uint32(np.ceil(np.linalg.norm(gripper.shape, 2)))
+    part_border = cv2.copyMakeBorder(part, gripper_diag, gripper_diag, gripper_diag, gripper_diag, cv2.BORDER_CONSTANT, None, 0)
+    
+    com_y, com_x = center_of_mass(part_border)
+    dist_from_edge = distance_transform_edt(1 - part_border)
+    
+    cost_params = CostParams(1.5, 2.0, 0.001 * gripper_size, 1.2)
+    best = optimize(gripper, gripper_diag, com_x, com_y, dist_from_edge, cost_params)
 
-    res = optimize(gripper, height_maps, com_x, com_y)
-    show_res(gripper, height_maps[0], res.x)
+    x = int(best.x[0])
+    y = int(best.x[1])
+    alpha = best.x[2]
 
-
-
-##########################################################################
-# ABSTELLGLEIS
-##########################################################################
-
-
-
-# def target_grad(
-#     vars: np.ndarray,
-#     gripper: np.ndarray,
-#     target_map: np.ndarray,
-#     grad_map: np.ndarray,
-# ):
-#     gripper_size = np.sum(gripper) / 100
-
-#     grad_overlay = overlay_gripper(np.floor(vars).astype(int), gripper, grad_map)
-#     total_force = np.sum(grad_overlay, axis=(1,2))
-
-#     x0, y0, alpha = vars
-
-#     x, y = np.meshgrid(np.arange(grad_overlay.shape[2]), np.arange(grad_overlay.shape[1]))
-#     rx = x - x0
-#     ry = y - y0
-
-#     torque = rx * grad_overlay[0,:,:] - ry * grad_overlay[1,:,:]
-#     gripper_r = np.max(gripper.shape)/2
-#     total_torque = np.sum(torque) / gripper_r
-
-#     total = np.concatenate((total_force, [total_torque]))
-#     print(total)
-#     return total
+    gripper_mask = create_gripper_mask(part_border.shape, gripper, x, y, alpha)
+    res = part_border.copy()
+    res[gripper_mask == 1] = 0.5
+    res[int(com_y)-5:int(com_y)+5, int(com_x)-5:int(com_x+5)] = 0.5
+    cv2.imshow("Result", res)
+    cv2.waitKey()
 
 
