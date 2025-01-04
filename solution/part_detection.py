@@ -14,7 +14,12 @@ if __name__ == "__main__":
 else:
      from .helper import DATA_PATH
 
-BORDER: int = 50
+BORDER_ROBUST: int = 50
+IMAGE_RESIZE: tuple[int, int] = (1000, 1000)
+GABOR_SIGMA: float = 2.
+GABOR_LAMBDA_WEIGHT = .56
+GABOR_N: int = 8
+GABOR_KERNEL_SIZE: tuple[int, int] = (15, 15) 
 
 class Part(object):
      def __init__(self, image_path: str | Path) -> Self:
@@ -29,11 +34,11 @@ class Part(object):
      
      @staticmethod
      def __preprocessing(image: np.ndarray) -> np.ndarray:
-          image = cv2.resize(image, (1000,1000))
+          image = cv2.resize(image, IMAGE_RESIZE)
           image_lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
           l, _, _ = cv2.split(image_lab)
           # add robust border to avoid boundary effects
-          l = cv2.copyMakeBorder(l, BORDER, BORDER, BORDER, BORDER, cv2.BORDER_CONSTANT)
+          l = cv2.copyMakeBorder(l, BORDER_ROBUST, BORDER_ROBUST, BORDER_ROBUST, BORDER_ROBUST, cv2.BORDER_CONSTANT)
           # Smooth broad features and increase local contrast to enhance high freq features
           l = cv2.bilateralFilter(l, 10, 100, 100)
           l = enhance_contrast(l, disk(5))
@@ -48,11 +53,13 @@ class Part(object):
      def __edge_detection(image: np.ndarray) -> np.ndarray:
           # Use 8 Gabor filters for actual edge detection
           F = np.zeros_like(image, dtype=np.uint16)
-          sig = 2
-          lambd = .56 * sig
-          N = 8
+          sig = GABOR_SIGMA
+          lambd = GABOR_LAMBDA_WEIGHT * sig
+          N = GABOR_N
           for theta in np.linspace(0, 180 * (N-1)/N, N):
-               kernel = cv2.getGaborKernel((15, 15), sig, theta, lambd, 3, 0, ktype=cv2.CV_32F)
+               kernel = cv2.getGaborKernel(
+                    GABOR_KERNEL_SIZE, sig, theta, lambd, 3, 0, ktype=cv2.CV_32F
+               )
                f = cv2.filter2D(image, cv2.CV_8UC3, kernel)
                F += f
           image = rescale_intensity(F, out_range="uint8")
@@ -83,8 +90,8 @@ class Part(object):
                cv2.fillPoly(thresholded, [contour], color)
           # erase border
           thresholded = thresholded[
-               BORDER:-BORDER, 
-               BORDER:-BORDER,
+               BORDER_ROBUST:-BORDER_ROBUST, 
+               BORDER_ROBUST:-BORDER_ROBUST,
           ]
           return thresholded
 
