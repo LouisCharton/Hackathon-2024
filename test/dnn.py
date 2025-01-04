@@ -46,8 +46,8 @@ class DNNEdge(object):
 
     def __init__(
         self, 
-        prototxt_path: Path|str = "deploy.prototxt",
-        caffemodel_path: Path|str = "hed_pretrained_bsds.caffemodel",
+        prototxt_path: Path|str = Path(__file__).parent / "deploy.prototxt",
+        caffemodel_path: Path|str = Path(__file__).parent / "hed_pretrained_bsds.caffemodel",
     ) -> Self:
         # Load the pre-trained HED model
         self.net: Net = cv2.dnn.readNetFromCaffe(prototxt_path, caffemodel_path)
