@@ -150,21 +150,15 @@ if __name__	== "__main__":
 
     def fill_edge_profile(edge: np.ndarray) -> np.ndarray:
         _, edge = cv2.threshold(edge, 200, 255, cv2.THRESH_BINARY)        
-        contours, _ = cv2.findContours(edge, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(edge.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
-        largest_contour = max(contours, key=cv2.contourArea)
-        h, w = edge.shape[:2]
-        mask = np.zeros((h+2, w+2), np.uint8)  # Add a 1-pixel border around the image
-
-        # Seed point inside the largest contour
-        # (You can use cv2.boundingRect to find a seed point)
-        x, y, w, h = cv2.boundingRect(largest_contour)
-        seed_point = (x + w // 2, y + h // 2)
-
-        # Flood-fill the largest contour
-        filled_image = edge.copy()  # Make a copy of the binary image
-        cv2.floodFill(filled_image, mask, seed_point, 255)
-        return filled_image - edge
+        contours = sorted(contours, key=cv2.contourArea)
+        for i_, contour in enumerate(contours):
+            if i_ == 0:
+                cv2.drawContours(edge, contours, [contour], color=255, thickness=cv2.FILLED)
+            else:
+                cv2.drawContours(edge, contours, [contour], color=0, thickness=cv2.FILLED)
+        return 
 
     flooded = fill_edge_profile(edges_total)
     flooded = closing(flooded, disk(2))
