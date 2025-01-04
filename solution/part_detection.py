@@ -9,10 +9,7 @@ from skimage.exposure import rescale_intensity
 from skimage.morphology import disk, dilation, erosion
 from skimage.filters import threshold_otsu
 
-if __name__ == "__main__":
-     from helper import DATA_PATH
-else:
-     from .helper import DATA_PATH
+from helper import DATA_PATH
 
 BORDER_ROBUST: int = 50
 IMAGE_RESIZE: tuple[int, int] = (1000, 1000)
@@ -21,33 +18,46 @@ GABOR_LAMBDA_WEIGHT = .56
 GABOR_N: int = 8
 GABOR_KERNEL_SIZE: tuple[int, int] = (15, 15) 
 
+
+def _normalize(image: np.ndarray) -> np.ndarray:
+     return (image - np.min(image)) / (np.max(image) - np.min(image))     
+          
 class Part(object):
+     image: np.ndarray
+     x_ofs: int
+     y_ofs: int
+     scale: tuple[int, int]
+     
      def __init__(self, image_path: str | Path) -> Self:
-          self.image: np.ndarray = cv2.imread(image_path)
+          image: np.ndarray = cv2.imread(image_path)
+          image_lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+          l, _, _ = cv2.split(image_lab)
+          image = l
+          self.x_ofs, self.y_ofs, self.image = self.__align_to_boundary(image)
           self.scale = self.image.shape[:2][::-1]
      
      def detect(self) -> np.ndarray:
           part_image = self.__preprocessing(self.image)
           edges = self.__edge_detection(part_image)
           part = self.__edge_filling(part_image, edges)
-          return cv2.resize(part, self.scale)
-     
+          part = cv2.resize(part, self.scale)
+          
+          return _normalize(part)
+          
      @staticmethod
      def __preprocessing(image: np.ndarray) -> np.ndarray:
           image = cv2.resize(image, IMAGE_RESIZE)
-          image_lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
-          l, _, _ = cv2.split(image_lab)
           # add robust border to avoid boundary effects
-          l = cv2.copyMakeBorder(l, BORDER_ROBUST, BORDER_ROBUST, BORDER_ROBUST, BORDER_ROBUST, cv2.BORDER_CONSTANT)
+          image = cv2.copyMakeBorder(image, BORDER_ROBUST, BORDER_ROBUST, BORDER_ROBUST, BORDER_ROBUST, cv2.BORDER_CONSTANT)
           # Smooth broad features and increase local contrast to enhance high freq features
-          l = cv2.bilateralFilter(l, 10, 100, 100)
-          l = enhance_contrast(l, disk(5))
+          image = cv2.bilateralFilter(image, 10, 100, 100)
+          image = enhance_contrast(image, disk(5))
           # essentially high pass
-          l = difference_of_gaussians(l, 1.5)
+          image = difference_of_gaussians(image, 1.5)
           # normalization
-          l = rescale_intensity(l, out_range="uint8")
-          l = enhance_contrast(l, disk(5))
-          return l
+          image = rescale_intensity(image, out_range="uint8")
+          image = enhance_contrast(image, disk(5))
+          return image
 
      @staticmethod
      def __edge_detection(image: np.ndarray) -> np.ndarray:
@@ -95,6 +105,18 @@ class Part(object):
           ]
           return thresholded
 
+     @staticmethod
+     def __align_to_boundary(image: np.ndarray) -> tuple[int, int, np.ndarray]:
+          thresh = 0
+          binary = 255 * (image > thresh).astype(np.uint8)
+          contours, _ = cv2.findContours(binary, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+          # Find the bounding box of the largest contour
+          largest_contour = max(contours, key=cv2.contourArea)
+          x, y, w, h = cv2.boundingRect(largest_contour)
+          # Crop the image using the bounding box
+          image = image[y:y+h, x:x+w]
+          return x, y, image
+
 if __name__ == "__main__":
      # image_path = DATA_PATH / "part_3/mask_20241126-154623-554.png"    # Ganz i.O.
      # image_path = DATA_PATH / "part_20/mask_20241202-114431-044.png"   # Schrift ausgestanzt
@@ -103,10 +125,12 @@ if __name__ == "__main__":
      # image_path = DATA_PATH / "part_1/mask_20241203-084242-404.png"    # Beschissener Hintergrund
      image_path = DATA_PATH / "part_27/mask_20241126-144214-401.png"   # Viele Löcher
      # image_path = DATA_PATH / "part_36/inverted_color/mask_20241204-113044-187i + 1.png"
+     # image_path = DATA_PATH / "part_6/positional_variation/mask_20241204-112550-471i + 1.png" # Position
      
      _P = Part(image_path)
      binary = _P.detect()
+     print(_P.x_ofs, _P.y_ofs)
      cv2.imshow("bin", binary)
      cv2.waitKey(0) 
-
+     cv2.imwrite("ref_part_27.png", binary)
      

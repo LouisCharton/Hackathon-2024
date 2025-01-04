@@ -19,10 +19,7 @@ BASIN_SF = 0.9
 
 SQRT_2 = np.sqrt(2)
 
-if __name__ == "__main__":
-    from helper import SAMPLE_PATH, DATA_PATH
-else:
-    from .helper import SAMPLE_PATH, DATA_PATH
+from helper import SAMPLE_PATH, DATA_PATH
 
 @dataclass
 class CostParams:
@@ -137,7 +134,7 @@ def show_res(part, gripper, res):
 
 if __name__ == "__main__":
     # part = cv2.imread(f"{SAMPLE_PATH}/reference24.png")
-    part = cv2.imread("REF_PART2.png")
+    part = cv2.imread("ref_part_27.png")
     part = cv2.cvtColor(part, cv2.COLOR_RGB2GRAY)
     _, part = cv2.threshold(part, 1, 255, cv2.THRESH_BINARY)
     part = _normalize(part)
