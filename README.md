@@ -1,105 +1,31 @@
-# Hackathon 2024
+# Hackathon 2024 - Submission of Group *// HEINERCV //*
 
-Welcome, and thank you for participating! This repository contains a skeleton for your submission to the Hackathon 2024.
+Team members:
+- // Robert Knobloch //
+- // Louis Charton //
+    
+## Description
+The solution approach is 100% knowledge based, as the data seemed to unreliable (noisy, bad resolution) for pretrained models
+-> e.g. **HED** (Hollistically Nested Edge Detection) (Xie et al., 2015) https://github.com/s9xie/hed
 
-## The Challenge
+- For part detection, heavy preprocessing was needed for any edge detecting algorithm to work. We resulted in applying a pipeline consisting of a constant rescaling of any image given; Bilateral Filtering to reduce noise and reduce overall very high frequency noise. A chain of Rank filters for contrast enhancement, low frequency Cutting using a difference of gaussians Filter to slightly enhance high frequency content (e.g. edges) proved to be a robust preprocessing pipeline, considering the quality of provided data.
+- The edge Detection mainly consists in filtering with 8 Gabor Kernels arranged in a semicircle, tuned for high frequencies. The parameters are kept constant due to the rescaling of the image. 
+- After that, a series of morphological filters are applied to close gaps and remove small filter noise artefacts. The image is thresholded by using otsus method and the resulting binary contour is filled and used as a mask for the gripper.
+- For the position optimization, the gripper mask is converted to png and functions as a integral mask for our costfunction. the value of this spatial integral is to be minimized. The cost function is a linear weighted overlay of:
+    - The euclidean distance of the gripper center to the center of gravity of the part mask of order N
+    - The distance of any point to the nearest point on the Part (Weight for Holes) of order N
+    
+    Repeating this optimization for different weights and different orders of the cost function parts, in addition to random starting coordinates (basin hopping) yields a nearly optimal result for the identified partmask provided.
 
-The challenge was presented during the kick-off meeting.
-In short, the task is to find a good position and rotation for a robotic arm to grab a piece of cut sheet metal.
+The result of the part detection algorithm is non-stochastic and the optimizer yields nearly optimal results all while using a stochastic optimization approach (basinhopping)   
 
-<img src="data/dummy/part_1/part_1.png" alt="An example input image" width="200px" /> 
-<img src="data/dummy/part_1/visualisation_1.png" alt="An example solution" width="200px" />
+## How to Run
+After installing all requirements according to requirements.txt run below: 
 
-### Where is my data?
+// `python solution/main.py path/to/input/tasks.csv output/solutions.csv` //
 
-First off: The data is NOT to be made public. In particular, do not publicly upload the data to GitHub.
-
-You should have received a link to a shared folder with the data in the kick-off.
-Please add the data from the BWSync into `data/raw/` and `data/evaluate/`.
-
-For example, `data/raw/part_1` now contains `part_1.png` for the part file and `gripper_2.png` for the gripper mask.
-Each parts folder may contain several parts and gripper files, so you need to be able to compute matches for all of them.
-Additionally, `data/evaluate/` also contains solutions for the evaluation.
-
-We will run the final evaluation on a *different* dataset of a similar format, so make sure your solution is general enough to work on unseen data.
-We might assess the effctivenss of your method on more challanging data if that helps to more clearly determine winners.
-
-A pixel corresponds to 1mm in real world. The gripper SVGs are scaled accordingly.
-
-## Your solution and the evaluation
-
-You can either:
-1. Use Python 3.12+ and the provided code skeleton to implement your solution. To get started, place your dependencies in `requirements.txt` and start coding in `solution/`. Your dependencies should be easy to install via pip. If that is not the case, see option 2.
-2. Use your own tools and languages. In this case, provide us with a detailed description of how to run your code AND a `Dockerfile` where everything can run out of the box.
-
-### The interface to your Code
-
-To check if your code is working and to permit final grading, please make sure you provide the following:
-Your solution must be a program with two strings as the calling arguments.
-Firstly, it receives a CSV file containing the part and gripper image file names.
-We might split the evaluation into multiple such calls to your program.
-All paths are relative to the current working directory.
-The input file will look like this:
-
-```csv
-part,gripper
-part_1.png,gripper_5.svg
-part_42.png,gripper_1.svg
-```
-
-Secondly, it receives an argument with a path to a folder where the results should be saved.
-The output must look like this:
-
-```csv
-part,gripper,x,y,angle
-part_1.png,gripper_5.svg,100,200,45
-part_42.png,gripper_1.svg,300,400,90
-```
-
-You are more than welcome to add visualization images as well.
-They might help you and us to understand your solution better.
-You can simply return them as an additional `visualization` column in the CSV file.
-
-In summary, your program needs to handle (for instance, with Python) `python solution/main.py path/to/input/tasks.csv output/solutions.csv`.
-it should exit with a status code of `0` if everything went well and `1` in any other case.
-Hint: In Python, the return code is always `0` anyway unless you explicitly call `sys.exit(1)` or an exception is raised.
-
-### Runtime requirements
-
-Your code needs to be able to run on a modern consumer desktop.
-It may use a single GPU you'd typically find in such a machine (i.e., no high-end server GPUs).
-The code may run for up to 3 seconds per part-gripper pair.
-If it takes noticeably longer, we will deduct points from your score.
-
-### Evaluation of your Code
-
-To see if your program is running correctly, we provide a simple evaluation script.
-It should work as long as your output follows the format described above.
-You can run it by the following command:
-
-```bash
-python evaluate/eval.py
-```
-
-If you build something custom, you can also run it like this:
-
-```bash
-python evaluate/eval.py 'python solution/your/super/fancy/tool.py'
-# Or
-python evaluate/eval.py 'super_fast_assembly_solution'
-```
-
-**NOTE: This is currently a placeholder evaluation script. We will provide a complete evaluation on the actual data soon. It will also account for possibly ambigous solutions.**
-
-## License
-
-All resources in this repository are licensed under the MIT License. See the [LICENSE](LICENSE) for more information.
-
-We expect you to also license your code under the MIT License when submitting it.
-
-## Acknowledgments
-
-<img src="doc/logos-all.png" alt="Logos" width="600px" />
-
-This project is partially funded by the German Federal Ministry of Education and Research (BMBF) within the “The Future of Value Creation – Research on Production, Services and Work” program (funding number 02L19C150) managed by the Project Management Agency Karlsruhe (PTKA).
-The authors are responsible for the content of this publication.
+## ... and other things you want to tell us
+- The rather complex part detection is necessary, because traditional algorithms like canny have dramatically unreliable results with the provided data.
+- The challenges were mainly the stability of the optimizer, poor computation performance (high cost) and the reliability of the part detection. 
+- We did not want to create labeled Data (too much and too various) and pretrained DNN approaches like HED (see above) did not work properly for thresholding in most cases. We found no clear identifiers for a clustering approach, even after performing a PCA of hundereds of features making use of what felt like the whole scikit-image library.
+- Thus we decided on the knowledge based approach which serves as a compromise, yielding decent results for the most images, even including noisy backgrounds, poor contrast, high noise etc.   
