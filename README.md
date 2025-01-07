@@ -1,8 +1,8 @@
-# Hackathon 2024 - Submission of Group *// HEINERCV //*
+# Hackathon 2024 - Submission of Group *HEINERCV*
 
 Team members:
-- // Robert Knobloch //
-- // Louis Charton //
+- Robert Knobloch 
+- Louis Charton 
     
 ## Description
 The solution approach is 100% knowledge based, as the data seemed to unreliable (noisy, bad resolution) for pretrained models
@@ -22,7 +22,7 @@ The result of the part detection algorithm is non-stochastic and the optimizer y
 ## How to Run
 After installing all requirements according to requirements.txt run below: 
 
-// `python solution/main.py path/to/input/tasks.csv output/solutions.csv` //
+`python solution/main.py path/to/input/tasks.csv output/solutions.csv` 
 
 ## ... and other things you want to tell us
 - The rather complex part detection is necessary, because traditional algorithms like canny have dramatically unreliable results with the provided data.
