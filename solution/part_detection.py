@@ -133,5 +133,5 @@ if __name__ == "__main__":
      print(_P.x_ofs, _P.y_ofs)
      cv2.imshow("bin", binary)
      cv2.waitKey(0) 
-     cv2.imwrite("ref_part_27.png", binary)
+     cv2.imwrite("ref_part_27.png", 255*binary)
      
