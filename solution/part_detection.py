@@ -123,9 +123,10 @@ if __name__ == "__main__":
      # image_path = DATA_PATH / "part_20/mask_20241202-164236-653.png"   # 
      # image_path = DATA_PATH / "part_22/mask_20241203-165823-809.png"   # Riesen Loch in der Mitte
      # image_path = DATA_PATH / "part_1/mask_20241203-084242-404.png"    # Beschissener Hintergrund
-     image_path = DATA_PATH / "part_27/mask_20241126-144214-401.png"   # Viele Löcher
+     # image_path = DATA_PATH / "part_27/mask_20241126-144214-401.png"   # Viele Löcher
      # image_path = DATA_PATH / "part_36/inverted_color/mask_20241204-113044-187i + 1.png"
      # image_path = DATA_PATH / "part_6/positional_variation/mask_20241204-112550-471i + 1.png" # Position
+     image_path = "image.png"
      
      _P = Part(image_path)
      binary = _P.detect()
